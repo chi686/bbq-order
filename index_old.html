@@ -1,0 +1,521 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+    <title>速烤点单</title>
+    <style>
+        * { margin: 0; padding: 0; box-sizing: border-box; }
+        body { 
+            font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif;
+            background: #f5f5f5;
+            padding-bottom: 80px;
+        }
+        .header {
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            color: white;
+            padding: 15px;
+            text-align: center;
+            font-size: 20px;
+            font-weight: bold;
+            box-shadow: 0 2px 10px rgba(0,0,0,0.1);
+            position: relative;
+        }
+        .header-btn {
+            position: absolute;
+            right: 15px;
+            top: 50%;
+            transform: translateY(-50%);
+            background: rgba(255,255,255,0.2);
+            border: none;
+            color: white;
+            padding: 8px 15px;
+            border-radius: 6px;
+            font-size: 14px;
+            cursor: pointer;
+        }
+        .container { padding: 15px; }
+        .stats-card {
+            background: white;
+            border-radius: 12px;
+            padding: 20px;
+            margin-bottom: 15px;
+            box-shadow: 0 2px 8px rgba(0,0,0,0.1);
+        }
+        .stats-title {
+            font-size: 16px;
+            color: #666;
+            margin-bottom: 10px;
+        }
+        .stats-amount {
+            font-size: 32px;
+            font-weight: bold;
+            color: #667eea;
+        }
+        .table-grid {
+            display: grid;
+            grid-template-columns: repeat(2, 1fr);
+            gap: 15px;
+            margin-top: 20px;
+        }
+        .table-card {
+            background: white;
+            border-radius: 12px;
+            padding: 25px;
+            text-align: center;
+            box-shadow: 0 2px 8px rgba(0,0,0,0.1);
+            cursor: pointer;
+            transition: all 0.3s;
+        }
+        .table-card:active { transform: scale(0.95); }
+        .table-card.occupied { background: #fff3cd; border: 2px solid #ffc107; }
+        .table-number { font-size: 24px; font-weight: bold; color: #333; }
+        .table-amount { font-size: 14px; color: #666; margin-top: 5px; }
+        .menu-category {
+            background: white;
+            border-radius: 12px;
+            padding: 15px;
+            margin-bottom: 15px;
+            box-shadow: 0 2px 8px rgba(0,0,0,0.1);
+        }
+        .category-title {
+            font-size: 18px;
+            font-weight: bold;
+            color: #333;
+            margin-bottom: 10px;
+            padding-bottom: 10px;
+            border-bottom: 2px solid #667eea;
+        }
+        .menu-item {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            padding: 12px 0;
+            border-bottom: 1px solid #eee;
+        }
+        .menu-item:last-child { border-bottom: none; }
+        .item-info { flex: 1; }
+        .item-name { font-size: 16px; color: #333; }
+        .item-price { font-size: 14px; color: #667eea; font-weight: bold; margin-top: 3px; }
+        .item-controls {
+            display: flex;
+            align-items: center;
+            gap: 10px;
+        }
+        .btn {
+            padding: 8px 16px;
+            border: none;
+            border-radius: 8px;
+            font-size: 16px;
+            cursor: pointer;
+            transition: all 0.3s;
+        }
+        .btn-minus, .btn-plus {
+            width: 35px;
+            height: 35px;
+            border-radius: 50%;
+            font-size: 20px;
+            font-weight: bold;
+        }
+        .btn-minus { background: #f0f0f0; color: #666; }
+        .btn-plus { background: #667eea; color: white; }
+        .btn:active { transform: scale(0.9); }
+        .quantity { 
+            min-width: 30px;
+            text-align: center;
+            font-size: 18px;
+            font-weight: bold;
+        }
+        .bottom-bar {
+            position: fixed;
+            bottom: 0;
+            left: 0;
+            right: 0;
+            background: white;
+            padding: 15px;
+            box-shadow: 0 -2px 10px rgba(0,0,0,0.1);
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+        }
+        .total-amount {
+            font-size: 20px;
+            font-weight: bold;
+            color: #667eea;
+        }
+        .btn-checkout {
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            color: white;
+            padding: 12px 30px;
+            font-size: 18px;
+            font-weight: bold;
+        }
+        .btn-back {
+            background: #f0f0f0;
+            color: #333;
+            padding: 10px 20px;
+            margin-bottom: 15px;
+        }
+        .order-summary {
+            background: white;
+            border-radius: 12px;
+            padding: 15px;
+            margin-bottom: 15px;
+            box-shadow: 0 2px 8px rgba(0,0,0,0.1);
+        }
+        .summary-title {
+            font-size: 16px;
+            font-weight: bold;
+            color: #333;
+            margin-bottom: 10px;
+        }
+        .summary-item {
+            display: flex;
+            justify-content: space-between;
+            padding: 8px 0;
+            border-bottom: 1px solid #eee;
+        }
+        .summary-item:last-child { border-bottom: none; }
+        .history-item {
+            background: white;
+            border-radius: 12px;
+            padding: 15px;
+            margin-bottom: 10px;
+            box-shadow: 0 2px 8px rgba(0,0,0,0.1);
+        }
+        .history-header {
+            display: flex;
+            justify-content: space-between;
+            margin-bottom: 10px;
+            padding-bottom: 10px;
+            border-bottom: 1px solid #eee;
+        }
+        .history-table {
+            font-size: 18px;
+            font-weight: bold;
+            color: #667eea;
+        }
+        .history-time {
+            font-size: 14px;
+            color: #999;
+        }
+        .history-total {
+            font-size: 20px;
+            font-weight: bold;
+            color: #333;
+            text-align: right;
+            margin-top: 10px;
+        }
+        .hidden { display: none; }
+    </style>
+</head>
+<body>
+    <!-- 首页：选择桌号 -->
+    <div id="homePage">
+        <div class="header">
+            速烤点单
+            <button class="header-btn" onclick="showHistory()">历史</button>
+        </div>
+        <div class="container">
+            <div class="stats-card">
+                <div class="stats-title">今日营业额</div>
+                <div class="stats-amount">¥<span id="todayTotal">0</span></div>
+            </div>
+            <div class="table-grid" id="tableGrid"></div>
+        </div>
+    </div>
+
+    <!-- 点单页面 -->
+    <div id="orderPage" class="hidden">
+        <div class="header" id="orderHeader">1号桌</div>
+        <div class="container">
+            <button class="btn btn-back" onclick="backToHome()">← 返回</button>
+            
+            <div class="order-summary" id="orderSummary"></div>
+            
+            <div id="menuContainer"></div>
+        </div>
+        <div class="bottom-bar">
+            <div class="total-amount">总计: ¥<span id="totalAmount">0</span></div>
+            <button class="btn btn-checkout" onclick="checkout()">结账</button>
+        </div>
+    </div>
+
+    <!-- 历史记录页面 -->
+    <div id="historyPage" class="hidden">
+        <div class="header">
+            历史记录
+            <button class="header-btn" onclick="backToHome()">返回</button>
+        </div>
+        <div class="container" id="historyContainer"></div>
+    </div>
+
+    <script>
+        // 菜品数据
+        const menu = {
+            '肉类': [
+                {name: '鸡翅', price: 5},
+                {name: '羊肉串', price: 3},
+                {name: '牛肉串', price: 4}
+            ],
+            '蔬菜': [
+                {name: '韭菜', price: 2},
+                {name: '金针菇', price: 3}
+            ],
+            '海鲜': [
+                {name: '生蚝', price: 8},
+                {name: '扇贝', price: 6}
+            ],
+            '饮料': [
+                {name: '可乐', price: 3},
+                {name: '啤酒', price: 5}
+            ]
+        };
+
+        // 当前状态
+        let currentTable = null;
+        let tables = {}; // {1: {items: [{name, price, quantity}], total: 0}}
+
+        // 初始化
+        function init() {
+            // 从本地存储加载数据
+            const saved = localStorage.getItem('bbq_tables');
+            if (saved) {
+                tables = JSON.parse(saved);
+            }
+            renderTableGrid();
+            updateTodayTotal();
+        }
+
+        // 计算今日营业额
+        function updateTodayTotal() {
+            const history = JSON.parse(localStorage.getItem('bbq_history') || '[]');
+            const today = new Date().toDateString();
+            const todayOrders = history.filter(record => {
+                const recordDate = new Date(record.time).toDateString();
+                return recordDate === today;
+            });
+            const total = todayOrders.reduce((sum, record) => sum + record.total, 0);
+            document.getElementById('todayTotal').textContent = total;
+        }
+
+        // 渲染桌号网格
+        function renderTableGrid() {
+            const grid = document.getElementById('tableGrid');
+            grid.innerHTML = '';
+            for (let i = 1; i <= 10; i++) {
+                const table = tables[i] || {items: [], total: 0};
+                const occupied = table.items.length > 0;
+                const card = document.createElement('div');
+                card.className = 'table-card' + (occupied ? ' occupied' : '');
+                card.onclick = () => openTable(i);
+                card.innerHTML = `
+                    <div class="table-number">${i}号桌</div>
+                    <div class="table-amount">${occupied ? '¥' + table.total : '空桌'}</div>
+                `;
+                grid.appendChild(card);
+            }
+        }
+
+        // 打开桌号
+        function openTable(tableNum) {
+            currentTable = tableNum;
+            if (!tables[tableNum]) {
+                tables[tableNum] = {items: [], total: 0};
+            }
+            document.getElementById('homePage').classList.add('hidden');
+            document.getElementById('orderPage').classList.remove('hidden');
+            document.getElementById('orderHeader').textContent = tableNum + '号桌';
+            renderMenu();
+            updateOrderSummary();
+        }
+
+        // 返回首页
+        function backToHome() {
+            currentTable = null;
+            document.getElementById('orderPage').classList.add('hidden');
+            document.getElementById('historyPage').classList.add('hidden');
+            document.getElementById('homePage').classList.remove('hidden');
+            renderTableGrid();
+            updateTodayTotal();
+        }
+
+        // 显示历史记录
+        function showHistory() {
+            document.getElementById('homePage').classList.add('hidden');
+            document.getElementById('historyPage').classList.remove('hidden');
+            renderHistory();
+        }
+
+        // 渲染历史记录
+        function renderHistory() {
+            const container = document.getElementById('historyContainer');
+            const history = JSON.parse(localStorage.getItem('bbq_history') || '[]');
+            
+            if (history.length === 0) {
+                container.innerHTML = '<div class="stats-card"><div class="stats-title">暂无历史记录</div></div>';
+                return;
+            }
+
+            // 按日期分组
+            const grouped = {};
+            history.forEach(record => {
+                const date = new Date(record.time).toLocaleDateString('zh-CN');
+                if (!grouped[date]) grouped[date] = [];
+                grouped[date].push(record);
+            });
+
+            let html = '';
+            Object.keys(grouped).sort().reverse().forEach(date => {
+                const dayTotal = grouped[date].reduce((sum, r) => sum + r.total, 0);
+                html += `<div class="stats-card">
+                    <div class="stats-title">${date} - 共 ${grouped[date].length} 单</div>
+                    <div class="stats-amount">¥${dayTotal}</div>
+                </div>`;
+                
+                grouped[date].reverse().forEach(record => {
+                    const time = new Date(record.time).toLocaleTimeString('zh-CN', {hour: '2-digit', minute: '2-digit'});
+                    html += `<div class="history-item">
+                        <div class="history-header">
+                            <div class="history-table">${record.tableNum}号桌</div>
+                            <div class="history-time">${time} | ${record.payMethod}</div>
+                        </div>`;
+                    record.items.forEach(item => {
+                        html += `<div class="summary-item">
+                            <span>${item.name} × ${item.quantity}</span>
+                            <span>¥${item.price * item.quantity}</span>
+                        </div>`;
+                    });
+                    html += `<div class="history-total">总计: ¥${record.total}</div></div>`;
+                });
+            });
+            
+            container.innerHTML = html;
+        }
+
+        // 渲染菜单
+        function renderMenu() {
+            const container = document.getElementById('menuContainer');
+            container.innerHTML = '';
+            
+            for (const [category, items] of Object.entries(menu)) {
+                const categoryDiv = document.createElement('div');
+                categoryDiv.className = 'menu-category';
+                categoryDiv.innerHTML = `<div class="category-title">${category}</div>`;
+                
+                items.forEach(item => {
+                    const quantity = getItemQuantity(item.name);
+                    const itemDiv = document.createElement('div');
+                    itemDiv.className = 'menu-item';
+                    itemDiv.innerHTML = `
+                        <div class="item-info">
+                            <div class="item-name">${item.name}</div>
+                            <div class="item-price">¥${item.price}</div>
+                        </div>
+                        <div class="item-controls">
+                            <button class="btn btn-minus" onclick="changeQuantity('${item.name}', ${item.price}, -1)">-</button>
+                            <div class="quantity">${quantity}</div>
+                            <button class="btn btn-plus" onclick="changeQuantity('${item.name}', ${item.price}, 1)">+</button>
+                        </div>
+                    `;
+                    categoryDiv.appendChild(itemDiv);
+                });
+                
+                container.appendChild(categoryDiv);
+            }
+        }
+
+        // 获取菜品数量
+        function getItemQuantity(name) {
+            const table = tables[currentTable];
+            const item = table.items.find(i => i.name === name);
+            return item ? item.quantity : 0;
+        }
+
+        // 修改数量
+        function changeQuantity(name, price, delta) {
+            const table = tables[currentTable];
+            const existingItem = table.items.find(i => i.name === name);
+            
+            if (existingItem) {
+                existingItem.quantity += delta;
+                if (existingItem.quantity <= 0) {
+                    table.items = table.items.filter(i => i.name !== name);
+                }
+            } else if (delta > 0) {
+                table.items.push({name, price, quantity: delta});
+            }
+            
+            // 重新计算总价
+            table.total = table.items.reduce((sum, item) => sum + item.price * item.quantity, 0);
+            
+            saveData();
+            renderMenu();
+            updateOrderSummary();
+        }
+
+        // 更新订单摘要
+        function updateOrderSummary() {
+            const table = tables[currentTable];
+            const summary = document.getElementById('orderSummary');
+            
+            if (table.items.length === 0) {
+                summary.innerHTML = '<div class="summary-title">暂无点单</div>';
+            } else {
+                let html = '<div class="summary-title">当前订单</div>';
+                table.items.forEach(item => {
+                    html += `
+                        <div class="summary-item">
+                            <span>${item.name} × ${item.quantity}</span>
+                            <span>¥${item.price * item.quantity}</span>
+                        </div>
+                    `;
+                });
+                summary.innerHTML = html;
+            }
+            
+            document.getElementById('totalAmount').textContent = table.total;
+        }
+
+        // 结账
+        function checkout() {
+            const table = tables[currentTable];
+            if (table.items.length === 0) {
+                alert('该桌暂无点单');
+                return;
+            }
+            
+            if (!confirm(`确认结账 ${currentTable}号桌？\n总计：¥${table.total}`)) return;
+            const payMethod = '已结账';
+            
+            // 保存结账记录
+            const record = {
+                tableNum: currentTable,
+                items: [...table.items],
+                total: table.total,
+                payMethod,
+                time: new Date().toISOString()
+            };
+            
+            const history = JSON.parse(localStorage.getItem('bbq_history') || '[]');
+            history.push(record);
+            localStorage.setItem('bbq_history', JSON.stringify(history));
+            
+            // 清空该桌
+            tables[currentTable] = {items: [], total: 0};
+            saveData();
+            
+            alert(`${currentTable}号桌结账成功！\n总计：¥${record.total}`);
+            backToHome();
+        }
+
+        // 保存数据
+        function saveData() {
+            localStorage.setItem('bbq_tables', JSON.stringify(tables));
+        }
+
+        // 启动
+        init();
+    </script>
+</body>
+</html><!-- Updated Mon Mar 16 03:54:52 PM CST 2026 -->
