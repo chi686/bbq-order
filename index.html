@@ -441,7 +441,6 @@
             } else if (!tables[tableNum].startTime) {
                 tables[tableNum].startTime = Date.now();
             }
-            }
             document.getElementById('homePage').classList.add('hidden');
             document.getElementById('orderPage').classList.remove('hidden');
             document.getElementById('orderHeader').textContent = '🍢 ' + tableNum + '号桌';
@@ -500,7 +499,7 @@
                         </div>`;
                     record.items.forEach(item => {
                         html += `<div class="summary-item">
-                            <span>${item.name} × ${item.quantity}</span>
+                            <span>${item.name} × ${item.quantity}${item.note ? ' <span style="color:#999;font-size:12px;">('+item.note+')</span>' : ''}</span>
                             <span>¥${item.price * item.quantity}</span>
                         </div>`;
                     });
@@ -534,8 +533,6 @@
             element.addEventListener('touchstart', (e) => {
                 touchStartX = e.touches[0].clientX;
                 touchStartY = e.touches[0].clientY;
-                
-                // 长按快速加5
                 longPressTimer = setTimeout(() => {
                     changeQuantity(itemName, price, 5);
                     if (navigator.vibrate) navigator.vibrate(50);
@@ -553,7 +550,6 @@
                 const deltaX = touchEndX - touchStartX;
                 const deltaY = touchEndY - touchStartY;
                 
-                // 左滑删除
                 if (deltaX < -100 && Math.abs(deltaY) < 50) {
                     if (confirm(`删除 ${itemName}？`)) {
                         const table = tables[currentTable];
@@ -608,13 +604,6 @@
                 
                 container.appendChild(categoryDiv);
             }
-        }
-
-        // 获取菜品数量
-        function getItemQuantity(name) {
-            const table = tables[currentTable];
-            const item = table.items.find(i => i.name === name);
-            return item ? item.quantity : 0;
         }
 
         // 修改数量
