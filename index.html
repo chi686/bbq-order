@@ -290,6 +290,23 @@
             padding-top: 15px;
             border-top: 2px solid #f0f0f0;
         }
+        .btn-note {
+            background: #f0f0f0;
+            color: #667eea;
+            padding: 8px 12px;
+            font-size: 12px;
+            margin-right: 8px;
+        }
+        .item-note {
+            font-size: 12px;
+            color: #999;
+            margin-top: 3px;
+        }
+        .table-time {
+            font-size: 12px;
+            color: #999;
+            margin-top: 5px;
+        }
         .hidden { display: none; }
     </style>
 </head>
@@ -382,6 +399,20 @@
             document.getElementById('todayTotal').textContent = total;
         }
 
+
+        // 计算用餐时长
+        function getDiningTime(startTime) {
+            if (!startTime) return '';
+            const minutes = Math.floor((Date.now() - startTime) / 60000);
+            const hours = Math.floor(minutes / 60);
+            const mins = minutes % 60;
+            let timeStr = '';
+            if (hours > 0) timeStr = `${hours}小时`;
+            if (mins > 0) timeStr += `${mins}分钟`;
+            if (minutes > 60) timeStr += ' ⚠️';
+            return timeStr || '刚开始';
+        }
+
         // 渲染桌号网格
         function renderTableGrid() {
             const grid = document.getElementById('tableGrid');
@@ -392,9 +423,11 @@
                 const card = document.createElement('div');
                 card.className = 'table-card' + (occupied ? ' occupied' : '');
                 card.onclick = () => openTable(i);
+                const diningTime = occupied ? getDiningTime(table.startTime) : '';
                 card.innerHTML = `
                     <div class="table-number">${i}号桌</div>
                     <div class="table-amount">${occupied ? '¥' + table.total : '空桌'}</div>
+                    ${diningTime ? '<div class="table-time">🕐 ' + diningTime + '</div>' : ''}
                 `;
                 grid.appendChild(card);
             }
@@ -404,7 +437,10 @@
         function openTable(tableNum) {
             currentTable = tableNum;
             if (!tables[tableNum]) {
-                tables[tableNum] = {items: [], total: 0};
+                tables[tableNum] = {items: [], total: 0, startTime: Date.now()};
+            } else if (!tables[tableNum].startTime) {
+                tables[tableNum].startTime = Date.now();
+            }
             }
             document.getElementById('homePage').classList.add('hidden');
             document.getElementById('orderPage').classList.remove('hidden');
@@ -475,10 +511,67 @@
             container.innerHTML = html;
         }
 
+
+        // 添加备注
+        function addNote(itemName) {
+            const table = tables[currentTable];
+            const item = table.items.find(i => i.name === itemName);
+            if (!item) return;
+            
+            const note = prompt('添加备注（如：不要辣、多放孜然）', item.note || '');
+            if (note !== null) {
+                item.note = note;
+                saveData();
+                renderMenu();
+                updateOrderSummary();
+            }
+        }
+
+        // 手势操作
+        let touchStartX = 0, touchStartY = 0, longPressTimer = null;
+        
+        function setupGestures(element, itemName, price) {
+            element.addEventListener('touchstart', (e) => {
+                touchStartX = e.touches[0].clientX;
+                touchStartY = e.touches[0].clientY;
+                
+                // 长按快速加5
+                longPressTimer = setTimeout(() => {
+                    changeQuantity(itemName, price, 5);
+                    if (navigator.vibrate) navigator.vibrate(50);
+                }, 800);
+            });
+            
+            element.addEventListener('touchmove', (e) => {
+                clearTimeout(longPressTimer);
+            });
+            
+            element.addEventListener('touchend', (e) => {
+                clearTimeout(longPressTimer);
+                const touchEndX = e.changedTouches[0].clientX;
+                const touchEndY = e.changedTouches[0].clientY;
+                const deltaX = touchEndX - touchStartX;
+                const deltaY = touchEndY - touchStartY;
+                
+                // 左滑删除
+                if (deltaX < -100 && Math.abs(deltaY) < 50) {
+                    if (confirm(`删除 ${itemName}？`)) {
+                        const table = tables[currentTable];
+                        table.items = table.items.filter(i => i.name !== itemName);
+                        table.total = table.items.reduce((sum, item) => sum + item.price * item.quantity, 0);
+                        saveData();
+                        renderMenu();
+                        updateOrderSummary();
+                    }
+                }
+            });
+        }
+
         // 渲染菜单
         function renderMenu() {
             const container = document.getElementById('menuContainer');
             container.innerHTML = '';
+            const table = tables[currentTable];
             
             for (const [category, items] of Object.entries(menu)) {
                 const categoryDiv = document.createElement('div');
@@ -487,19 +580,29 @@
                 
                 items.forEach(item => {
                     const quantity = getItemQuantity(item.name);
+                    const tableItem = table.items.find(i => i.name === item.name);
+                    const note = tableItem ? (tableItem.note || '') : '';
+                    
                     const itemDiv = document.createElement('div');
                     itemDiv.className = 'menu-item';
                     itemDiv.innerHTML = `
                         <div class="item-info">
-                            <div class="item-name">${item.name}</div>
+                            <div class="item-name">${item.name}${note ? ' 📝' : ''}</div>
                             <div class="item-price">¥${item.price}</div>
+                            ${note ? '<div class="item-note">' + note + '</div>' : ''}
                         </div>
                         <div class="item-controls">
+                            ${quantity > 0 ? '<button class="btn btn-note" onclick="addNote(\''+item.name+'\')">备注</button>' : ''}
                             <button class="btn btn-minus" onclick="changeQuantity('${item.name}', ${item.price}, -1)">-</button>
                             <div class="quantity">${quantity}</div>
                             <button class="btn btn-plus" onclick="changeQuantity('${item.name}', ${item.price}, 1)">+</button>
                         </div>
                     `;
+                    
+                    if (quantity > 0) {
+                        setupGestures(itemDiv, item.name, item.price);
+                    }
+                    
                     categoryDiv.appendChild(itemDiv);
                 });
                 
@@ -525,7 +628,7 @@
                     table.items = table.items.filter(i => i.name !== name);
                 }
             } else if (delta > 0) {
-                table.items.push({name, price, quantity: delta});
+                table.items.push({name, price, quantity: delta, note: ''});
             }
             
             table.total = table.items.reduce((sum, item) => sum + item.price * item.quantity, 0);
@@ -547,7 +650,7 @@
                 table.items.forEach(item => {
                     html += `
                         <div class="summary-item">
-                            <span>${item.name} × ${item.quantity}</span>
+                            <span>${item.name} × ${item.quantity}${item.note ? ' <span style="color:#999;font-size:12px;">('+item.note+')</span>' : ''}</span>
                             <span>¥${item.price * item.quantity}</span>
                         </div>
                     `;
@@ -581,7 +684,7 @@
             history.push(record);
             localStorage.setItem('bbq_history', JSON.stringify(history));
             
-            tables[currentTable] = {items: [], total: 0};
+            tables[currentTable] = {items: [], total: 0, startTime: null};
             saveData();
             
             alert(`✅ ${currentTable}号桌结账成功！\n总计：¥${record.total}`);
