@@ -521,12 +521,11 @@
                 const card = document.createElement('div');
                 card.className = 'table-card' + (occupied ? ' occupied' : '');
                 card.onclick = () => openTable(i);
-                const timeStr = occupied ? getDiningTime(table.startTime) : '';
-                const needWarn = needsTurnover(table.startTime);
+                const diningTime = occupied ? getDiningTime(table.startTime) : '';
                 card.innerHTML = `
                     <div class="table-number">${i}号桌</div>
                     <div class="table-amount">${occupied ? '¥' + table.total : '空桌'}</div>
-                    ${timeStr ? `<div class="table-time${needWarn ? ' warning' : ''}">⏱️ ${timeStr}</div>` : ''}
+                    ${diningTime ? '<div style="font-size:12px;color:#999;margin-top:5px;">🕐 ' + diningTime + '</div>' : ''}
                 `;
                 grid.appendChild(card);
             }
