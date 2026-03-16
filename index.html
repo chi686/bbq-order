@@ -19,8 +19,39 @@
             font-size: 20px;
             font-weight: bold;
             box-shadow: 0 2px 10px rgba(0,0,0,0.1);
+            position: relative;
+        }
+        .header-btn {
+            position: absolute;
+            right: 15px;
+            top: 50%;
+            transform: translateY(-50%);
+            background: rgba(255,255,255,0.2);
+            border: none;
+            color: white;
+            padding: 8px 15px;
+            border-radius: 6px;
+            font-size: 14px;
+            cursor: pointer;
         }
         .container { padding: 15px; }
+        .stats-card {
+            background: white;
+            border-radius: 12px;
+            padding: 20px;
+            margin-bottom: 15px;
+            box-shadow: 0 2px 8px rgba(0,0,0,0.1);
+        }
+        .stats-title {
+            font-size: 16px;
+            color: #666;
+            margin-bottom: 10px;
+        }
+        .stats-amount {
+            font-size: 32px;
+            font-weight: bold;
+            color: #667eea;
+        }
         .table-grid {
             display: grid;
             grid-template-columns: repeat(2, 1fr);
@@ -145,14 +176,51 @@
             border-bottom: 1px solid #eee;
         }
         .summary-item:last-child { border-bottom: none; }
+        .history-item {
+            background: white;
+            border-radius: 12px;
+            padding: 15px;
+            margin-bottom: 10px;
+            box-shadow: 0 2px 8px rgba(0,0,0,0.1);
+        }
+        .history-header {
+            display: flex;
+            justify-content: space-between;
+            margin-bottom: 10px;
+            padding-bottom: 10px;
+            border-bottom: 1px solid #eee;
+        }
+        .history-table {
+            font-size: 18px;
+            font-weight: bold;
+            color: #667eea;
+        }
+        .history-time {
+            font-size: 14px;
+            color: #999;
+        }
+        .history-total {
+            font-size: 20px;
+            font-weight: bold;
+            color: #333;
+            text-align: right;
+            margin-top: 10px;
+        }
         .hidden { display: none; }
     </style>
 </head>
 <body>
     <!-- 首页：选择桌号 -->
     <div id="homePage">
-        <div class="header">烧烤店点单系统</div>
+        <div class="header">
+            烧烤店点单系统
+            <button class="header-btn" onclick="showHistory()">历史</button>
+        </div>
         <div class="container">
+            <div class="stats-card">
+                <div class="stats-title">今日营业额</div>
+                <div class="stats-amount">¥<span id="todayTotal">0</span></div>
+            </div>
             <div class="table-grid" id="tableGrid"></div>
         </div>
     </div>
@@ -171,6 +239,15 @@
             <div class="total-amount">总计: ¥<span id="totalAmount">0</span></div>
             <button class="btn btn-checkout" onclick="checkout()">结账</button>
         </div>
+    </div>
+
+    <!-- 历史记录页面 -->
+    <div id="historyPage" class="hidden">
+        <div class="header">
+            历史记录
+            <button class="header-btn" onclick="backToHome()">返回</button>
+        </div>
+        <div class="container" id="historyContainer"></div>
     </div>
 
     <script>
@@ -207,6 +284,19 @@
                 tables = JSON.parse(saved);
             }
             renderTableGrid();
+            updateTodayTotal();
+        }
+
+        // 计算今日营业额
+        function updateTodayTotal() {
+            const history = JSON.parse(localStorage.getItem('bbq_history') || '[]');
+            const today = new Date().toDateString();
+            const todayOrders = history.filter(record => {
+                const recordDate = new Date(record.time).toDateString();
+                return recordDate === today;
+            });
+            const total = todayOrders.reduce((sum, record) => sum + record.total, 0);
+            document.getElementById('todayTotal').textContent = total;
         }
 
         // 渲染桌号网格
@@ -244,8 +334,63 @@
         function backToHome() {
             currentTable = null;
             document.getElementById('orderPage').classList.add('hidden');
+            document.getElementById('historyPage').classList.add('hidden');
             document.getElementById('homePage').classList.remove('hidden');
             renderTableGrid();
+            updateTodayTotal();
+        }
+
+        // 显示历史记录
+        function showHistory() {
+            document.getElementById('homePage').classList.add('hidden');
+            document.getElementById('historyPage').classList.remove('hidden');
+            renderHistory();
+        }
+
+        // 渲染历史记录
+        function renderHistory() {
+            const container = document.getElementById('historyContainer');
+            const history = JSON.parse(localStorage.getItem('bbq_history') || '[]');
+            
+            if (history.length === 0) {
+                container.innerHTML = '<div class="stats-card"><div class="stats-title">暂无历史记录</div></div>';
+                return;
+            }
+
+            // 按日期分组
+            const grouped = {};
+            history.forEach(record => {
+                const date = new Date(record.time).toLocaleDateString('zh-CN');
+                if (!grouped[date]) grouped[date] = [];
+                grouped[date].push(record);
+            });
+
+            let html = '';
+            Object.keys(grouped).sort().reverse().forEach(date => {
+                const dayTotal = grouped[date].reduce((sum, r) => sum + r.total, 0);
+                html += `<div class="stats-card">
+                    <div class="stats-title">${date} - 共 ${grouped[date].length} 单</div>
+                    <div class="stats-amount">¥${dayTotal}</div>
+                </div>`;
+                
+                grouped[date].reverse().forEach(record => {
+                    const time = new Date(record.time).toLocaleTimeString('zh-CN', {hour: '2-digit', minute: '2-digit'});
+                    html += `<div class="history-item">
+                        <div class="history-header">
+                            <div class="history-table">${record.tableNum}号桌</div>
+                            <div class="history-time">${time} | ${record.payMethod}</div>
+                        </div>`;
+                    record.items.forEach(item => {
+                        html += `<div class="summary-item">
+                            <span>${item.name} × ${item.quantity}</span>
+                            <span>¥${item.price * item.quantity}</span>
+                        </div>`;
+                    });
+                    html += `<div class="history-total">总计: ¥${record.total}</div></div>`;
+                });
+            });
+            
+            container.innerHTML = html;
         }
 
         // 渲染菜单
