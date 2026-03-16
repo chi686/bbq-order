@@ -623,6 +623,7 @@
                     const quantity = getItemQuantity(item.name);
                     const itemDiv = document.createElement('div');
                     itemDiv.className = 'menu-item';
+                    const table = tables[currentTable];
                     const tableItem = table.items.find(i => i.name === item.name);
                     const note = tableItem?.note || '';
                     itemDiv.innerHTML = `
