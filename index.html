@@ -3,7 +3,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
-    <title>烧烤店点单系统</title>
+    <title>速烤点单</title>
     <style>
         * { margin: 0; padding: 0; box-sizing: border-box; }
         body { 
@@ -213,7 +213,7 @@
     <!-- 首页：选择桌号 -->
     <div id="homePage">
         <div class="header">
-            烧烤店点单系统
+            速烤点单
             <button class="header-btn" onclick="showHistory()">历史</button>
         </div>
         <div class="container">
@@ -485,7 +485,7 @@
                 return;
             }
             
-            const payMethod = confirm('支付方式：\n确定 = 微信/支付宝\n取消 = 现金') ? '微信/支付宝' : '现金';
+            const payMethod = '已结账';
             
             // 保存结账记录
             const record = {
@@ -504,7 +504,7 @@
             tables[currentTable] = {items: [], total: 0};
             saveData();
             
-            alert(`${currentTable}号桌结账成功！\n总计：¥${record.total}\n支付方式：${payMethod}`);
+            alert(`${currentTable}号桌结账成功！\n总计：¥${record.total}`);
             backToHome();
         }
 
