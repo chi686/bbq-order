@@ -290,6 +290,42 @@
             padding-top: 15px;
             border-top: 2px solid #f0f0f0;
         }
+
+        .table-time {
+            font-size: 12px;
+            color: #ff6b6b;
+            margin-top: 5px;
+            font-weight: 600;
+        }
+        .table-time.warning { color: #ff6b6b; animation: blink 1s infinite; }
+        @keyframes blink { 0%, 50%, 100% { opacity: 1; } 25%, 75% { opacity: 0.5; } }
+        .item-note {
+            font-size: 13px;
+            color: #999;
+            margin-top: 3px;
+            font-style: italic;
+        }
+        .btn-note {
+            background: #f0f0f0;
+            color: #666;
+            padding: 5px 12px;
+            font-size: 13px;
+            border-radius: 15px;
+        }
+        .swipe-hint {
+            position: fixed;
+            bottom: 100px;
+            left: 50%;
+            transform: translateX(-50%);
+            background: rgba(0,0,0,0.8);
+            color: white;
+            padding: 10px 20px;
+            border-radius: 20px;
+            font-size: 14px;
+            z-index: 1000;
+            animation: fadeOut 2s forwards;
+        }
+        @keyframes fadeOut { 0% { opacity: 1; } 80% { opacity: 1; } 100% { opacity: 0; } }
         .hidden { display: none; }
     </style>
 </head>
@@ -358,7 +394,86 @@
 
         // 当前状态
         let currentTable = null;
-        let tables = {};
+        let tables = {}; // {1: {items: [], total: 0, startTime: timestamp, note: ''}}
+
+
+        // 计算用餐时长
+        function getDiningTime(startTime) {
+            if (!startTime) return '';
+            const minutes = Math.floor((Date.now() - startTime) / 60000);
+            if (minutes < 1) return '刚坐下';
+            const hours = Math.floor(minutes / 60);
+            const mins = minutes % 60;
+            if (hours > 0) return `${hours}小时${mins}分`;
+            return `${mins}分钟`;
+        }
+
+        // 检查是否需要翻台提醒
+        function needsTurnover(startTime) {
+            if (!startTime) return false;
+            const minutes = Math.floor((Date.now() - startTime) / 60000);
+            return minutes >= 60; // 超过1小时
+        }
+
+        // 添加备注
+        function addNote(itemName) {
+            const note = prompt('添加备注（如：不要辣、多放孜然）');
+            if (note !== null) {
+                const table = tables[currentTable];
+                const item = table.items.find(i => i.name === itemName);
+                if (item) {
+                    item.note = note || '';
+                    saveData();
+                    renderMenu();
+                    updateOrderSummary();
+                }
+            }
+        }
+
+        // 手势操作
+        let touchStartX = 0, touchStartY = 0, longPressTimer = null;
+        
+        function setupGestures(element, itemName, price) {
+            element.addEventListener('touchstart', (e) => {
+                touchStartX = e.touches[0].clientX;
+                touchStartY = e.touches[0].clientY;
+                longPressTimer = setTimeout(() => {
+                    changeQuantity(itemName, price, 5);
+                    if (navigator.vibrate) navigator.vibrate(50);
+                    showHint('已添加 5 个');
+                }, 800);
+            });
+            
+            element.addEventListener('touchmove', () => clearTimeout(longPressTimer));
+            
+            element.addEventListener('touchend', (e) => {
+                clearTimeout(longPressTimer);
+                const touchEndX = e.changedTouches[0].clientX;
+                const deltaX = touchEndX - touchStartX;
+                const deltaY = Math.abs(e.changedTouches[0].clientY - touchStartY);
+                
+                if (deltaX < -100 && deltaY < 50) {
+                    const table = tables[currentTable];
+                    const item = table.items.find(i => i.name === itemName);
+                    if (item && confirm(`删除 ${itemName}？`)) {
+                        table.items = table.items.filter(i => i.name !== itemName);
+                        table.total = table.items.reduce((sum, i) => sum + i.price * i.quantity, 0);
+                        saveData();
+                        renderMenu();
+                        updateOrderSummary();
+                        showHint('已删除');
+                    }
+                }
+            });
+        }
+
+        function showHint(text) {
+            const hint = document.createElement('div');
+            hint.className = 'swipe-hint';
+            hint.textContent = text;
+            document.body.appendChild(hint);
+            setTimeout(() => hint.remove(), 2000);
+        }
 
         // 初始化
         function init() {
@@ -392,9 +507,12 @@
                 const card = document.createElement('div');
                 card.className = 'table-card' + (occupied ? ' occupied' : '');
                 card.onclick = () => openTable(i);
+                const timeStr = occupied ? getDiningTime(table.startTime) : '';
+                const needWarn = needsTurnover(table.startTime);
                 card.innerHTML = `
                     <div class="table-number">${i}号桌</div>
                     <div class="table-amount">${occupied ? '¥' + table.total : '空桌'}</div>
+                    ${timeStr ? `<div class="table-time${needWarn ? ' warning' : ''}">⏱️ ${timeStr}</div>` : ''}
                 `;
                 grid.appendChild(card);
             }
@@ -404,7 +522,9 @@
         function openTable(tableNum) {
             currentTable = tableNum;
             if (!tables[tableNum]) {
-                tables[tableNum] = {items: [], total: 0};
+                tables[tableNum] = {items: [], total: 0, startTime: Date.now()};
+            } else if (!tables[tableNum].startTime) {
+                tables[tableNum].startTime = Date.now();
             }
             document.getElementById('homePage').classList.add('hidden');
             document.getElementById('orderPage').classList.remove('hidden');
@@ -489,17 +609,22 @@
                     const quantity = getItemQuantity(item.name);
                     const itemDiv = document.createElement('div');
                     itemDiv.className = 'menu-item';
+                    const tableItem = table.items.find(i => i.name === item.name);
+                    const note = tableItem?.note || '';
                     itemDiv.innerHTML = `
                         <div class="item-info">
                             <div class="item-name">${item.name}</div>
                             <div class="item-price">¥${item.price}</div>
+                            ${note ? `<div class="item-note">📝 ${note}</div>` : ''}
                         </div>
                         <div class="item-controls">
+                            ${quantity > 0 ? `<button class="btn btn-note" onclick="addNote('${item.name}')">备注</button>` : ''}
                             <button class="btn btn-minus" onclick="changeQuantity('${item.name}', ${item.price}, -1)">-</button>
                             <div class="quantity">${quantity}</div>
                             <button class="btn btn-plus" onclick="changeQuantity('${item.name}', ${item.price}, 1)">+</button>
                         </div>
                     `;
+                    if (quantity > 0) setupGestures(itemDiv, item.name, item.price);
                     categoryDiv.appendChild(itemDiv);
                 });
                 
@@ -547,7 +672,10 @@
                 table.items.forEach(item => {
                     html += `
                         <div class="summary-item">
-                            <span>${item.name} × ${item.quantity}</span>
+                            <div>
+                                <div>${item.name} × ${item.quantity}</div>
+                                ${item.note ? `<div class="item-note">📝 ${item.note}</div>` : ''}
+                            </div>
                             <span>¥${item.price * item.quantity}</span>
                         </div>
                     `;
@@ -581,7 +709,7 @@
             history.push(record);
             localStorage.setItem('bbq_history', JSON.stringify(history));
             
-            tables[currentTable] = {items: [], total: 0};
+            tables[currentTable] = {items: [], total: 0, startTime: null};
             saveData();
             
             alert(`✅ ${currentTable}号桌结账成功！\n总计：¥${record.total}`);
