@@ -394,7 +394,7 @@
 
         // 当前状态
         let currentTable = null;
-        let tables = {}; // {1: {items: [], total: 0, startTime: timestamp, note: ''}}
+        let tables = {}; // {1: {items: [], total: 0, startTime: timestamp, note: ''}} // {1: {items: [], total: 0, startTime: timestamp, note: ''}}
 
 
         // 计算用餐时长
@@ -495,6 +495,20 @@
             });
             const total = todayOrders.reduce((sum, record) => sum + record.total, 0);
             document.getElementById('todayTotal').textContent = total;
+        }
+
+        
+        // 计算用餐时长
+        function getDiningTime(startTime) {
+            if (!startTime) return '';
+            const minutes = Math.floor((Date.now() - startTime) / 60000);
+            const hours = Math.floor(minutes / 60);
+            const mins = minutes % 60;
+            let timeStr = '';
+            if (hours > 0) timeStr = `${hours}小时`;
+            if (mins > 0) timeStr += `${mins}分钟`;
+            if (minutes > 60) timeStr += ' ⚠️';
+            return timeStr || '刚开始';
         }
 
         // 渲染桌号网格
@@ -650,7 +664,7 @@
                     table.items = table.items.filter(i => i.name !== name);
                 }
             } else if (delta > 0) {
-                table.items.push({name, price, quantity: delta});
+                table.items.push({name, price, quantity: delta, note: ''});
             }
             
             table.total = table.items.reduce((sum, item) => sum + item.price * item.quantity, 0);
@@ -719,6 +733,62 @@
         // 保存数据
         function saveData() {
             localStorage.setItem('bbq_tables', JSON.stringify(tables));
+        }
+
+        
+        // 添加备注
+        function addNote(itemName) {
+            const table = tables[currentTable];
+            const item = table.items.find(i => i.name === itemName);
+            if (!item) return;
+            
+            const note = prompt('添加备注（如：不要辣、多放孜然）', item.note || '');
+            if (note !== null) {
+                item.note = note;
+                saveData();
+                renderMenu();
+                updateOrderSummary();
+            }
+        }
+
+        // 手势操作
+        let touchStartX = 0, touchStartY = 0, longPressTimer = null;
+        
+        function setupGestures(element, itemName, price) {
+            element.addEventListener('touchstart', (e) => {
+                touchStartX = e.touches[0].clientX;
+                touchStartY = e.touches[0].clientY;
+                
+                // 长按快速加5
+                longPressTimer = setTimeout(() => {
+                    changeQuantity(itemName, price, 5);
+                    if (navigator.vibrate) navigator.vibrate(50);
+                }, 800);
+            });
+            
+            element.addEventListener('touchmove', (e) => {
+                clearTimeout(longPressTimer);
+            });
+            
+            element.addEventListener('touchend', (e) => {
+                clearTimeout(longPressTimer);
+                const touchEndX = e.changedTouches[0].clientX;
+                const touchEndY = e.changedTouches[0].clientY;
+                const deltaX = touchEndX - touchStartX;
+                const deltaY = touchEndY - touchStartY;
+                
+                // 左滑删除
+                if (deltaX < -100 && Math.abs(deltaY) < 50) {
+                    if (confirm(`删除 ${itemName}？`)) {
+                        const table = tables[currentTable];
+                        table.items = table.items.filter(i => i.name !== itemName);
+                        table.total = table.items.reduce((sum, item) => sum + item.price * item.quantity, 0);
+                        saveData();
+                        renderMenu();
+                        updateOrderSummary();
+                    }
+                }
+            });
         }
 
         init();
