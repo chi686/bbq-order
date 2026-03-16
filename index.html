@@ -359,7 +359,7 @@
         // 当前状态
         let currentTable = null;
         let tables = {};
-        let touchStartX = 0, touchStartY = 0, longPressTimer = null;
+        
 
         // 计算用餐时长
         function getDiningTime(startTime) {
@@ -521,37 +521,6 @@
             }
         }
 
-        // 绑定手势：长按+5，左滑删除
-        function setupGestures(element, itemName, price) {
-            element.addEventListener('touchstart', (e) => {
-                touchStartX = e.touches[0].clientX;
-                touchStartY = e.touches[0].clientY;
-                clearTimeout(longPressTimer);
-                longPressTimer = setTimeout(() => {
-                    changeQuantity(itemName, price, 5);
-                    if (navigator.vibrate) navigator.vibrate(50);
-                }, 800);
-            });
-            element.addEventListener('touchmove', () => {
-                clearTimeout(longPressTimer);
-            });
-            element.addEventListener('touchend', (e) => {
-                clearTimeout(longPressTimer);
-                const touchEndX = e.changedTouches[0].clientX;
-                const touchEndY = e.changedTouches[0].clientY;
-                const deltaX = touchEndX - touchStartX;
-                const deltaY = touchEndY - touchStartY;
-                if (deltaX < -100 && Math.abs(deltaY) < 50) {
-                    const table = tables[currentTable];
-                    table.items = table.items.filter(i => i.name !== itemName);
-                    table.total = table.items.reduce((sum, item) => sum + item.price * item.quantity, 0);
-                    saveData();
-                    renderMenu();
-                    updateOrderSummary();
-                }
-            });
-        }
-
         // 渲染菜单
         function renderMenu() {
             const container = document.getElementById('menuContainer');
@@ -582,7 +551,7 @@
                             <button class="btn btn-plus" onclick="changeQuantity('${item.name}', ${item.price}, 1)">+</button>
                         </div>
                     `;
-                    if (quantity > 0) setupGestures(itemDiv, item.name, item.price);
+                    
                     categoryDiv.appendChild(itemDiv);
                 });
 
